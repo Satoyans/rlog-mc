@@ -38,18 +38,18 @@ class logWatch {
 		this.latest_log_path = path;
 		this.check_interval_ms = 1000; //チェック間隔(ms)
 		this.event = new EventEmitter();
+		this.chengeEventAfter();
 		this.checkLogfile();
 		console.log("watch log file path:" + this.latest_log_path);
 		this.event.on("change", this.chengeEventAfter.bind(this));
 
 		this.last_size = 0;
-		this.last_text = "";
+		this.last_text = Array(100).fill('"').join("'"); //なさそうな文字列
 	}
 
 	private checkLogfile() {
 		const check = () => {
 			const size = fs.statSync(this.latest_log_path).size;
-			console.log(this.last_size, size);
 			if (this.last_size < size && this.last_size !== 0) {
 				this.event.emit("change");
 			}
@@ -70,11 +70,15 @@ class logWatch {
 					chunks.reduce((sum, chunk) => (sum += chunk.length), 0)
 				);
 				const text = buffer.toString("utf-8");
-				const split_text = text.split(this.last_text);
-				this.event.emit("change_diff", split_text);
+				const split_text1 = text.split(this.last_text);
+				const split_text2 = split_text1[split_text1.length - 1].split("\r\n");
+				split_text2.pop();
 				this.last_text = text;
+				if (this.last_size === 0) return;
+				this.event.emit("change_diff", split_text2);
 			});
 	}
 }
 
-new Main();
+const main = new Main();
+export const event = main.logWatch.event;
