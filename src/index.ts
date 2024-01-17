@@ -9,7 +9,7 @@ import * as path from "path";
 class Main {
 	minecraft: MinecraftEventEmitter;
 	discord: DiscordEventEmitter;
-	getMcIcon: (playerName: string) => Promise<Buffer>;
+	getMcIcon: (playerName: string) => Promise<string>;
 	rcon: Rcon;
 	constructor() {
 		//configはトークンを含むためthisに入れない
@@ -27,56 +27,15 @@ class Main {
 }
 class Minecraft {
 	event: MinecraftEventEmitter;
-	icon_map: Map<string, Buffer>;
 
 	constructor(config: configType) {
 		const logWatch = new LogWatch(config);
 		this.event = new MinecraftEventEmitter();
-		this.icon_map = new Map();
 		this.event.getIcon = this.getIcon.bind(this);
 		logWatch.event.on("change_diff", this.change_diff.bind(this));
 	}
 	async getIcon(playerName: string) {
-		let icon = this.icon_map.get(playerName);
-		if (icon) return icon;
-		const get = (uri: string, options?: request.CoreOptions): Promise<request.Response> => {
-			return new Promise((resolve, reject) => {
-				request.get(uri, options, (err, res) => {
-					if (err) return reject(err);
-					return resolve(res);
-				});
-			});
-		};
-
-		const res1 = await get(`https://api.mojang.com/users/profiles/minecraft/${playerName}`);
-		const body1 = JSON.parse(res1.body);
-		const res2 = await get(`https://sessionserver.mojang.com/session/minecraft/profile/${body1.id}`);
-		const body2 = JSON.parse(res2.body);
-		const skin_url_base64 = body2.properties[0].value;
-		const skin_url_str = Buffer.from(skin_url_base64, "base64").toString();
-		const skin_url = JSON.parse(skin_url_str).textures.SKIN.url;
-		const res3 = await get(skin_url, { encoding: null });
-		const skin_buffer = await sharp(res3.body).resize({ width: 64 }).toBuffer();
-		const base_face_buffer = await sharp(skin_buffer)
-			.extract({
-				left: 40,
-				top: 8,
-				width: 8,
-				height: 8,
-			})
-			.toBuffer();
-		const face_buffer = await sharp(skin_buffer)
-			.extract({
-				left: 8,
-				top: 8,
-				width: 8,
-				height: 8,
-			})
-			.composite([{ input: base_face_buffer, blend: "over" }])
-			.toBuffer();
-		this.icon_map.set(playerName, face_buffer);
-		sharp(face_buffer).toFile(path.join(__dirname, `../skins/${playerName}.png`)); //export
-		return face_buffer;
+		return `https://mc-heads.net/avatar/${playerName}/64`;
 	}
 
 	change_diff(texts: string[]) {
@@ -149,35 +108,14 @@ class Discord {
 		if (message.author.bot) return;
 		this.event.emit("chat", message);
 	}
-	private async sendMessage(playerName: string, message: string, buffer?: Buffer | string) {
+	private async sendMessage(playerName: string, message: string, avatar_url?: string) {
 		const webhookClient = new WebhookClient({ url: this.channel_webhook });
-		const body = {
+		console.log(avatar_url);
+		webhookClient.send({
 			username: playerName,
 			content: message,
-		};
-		if (buffer) {
-			body["avatar_url"] = `attachment://${playerName}.png`;
-			body["files"] = [new AttachmentBuilder(path.join(__dirname, `../skins/${playerName}.png`), { name: `${playerName}.png` })];
-			const embed = new EmbedBuilder()
-				.setTitle(message)
-				.setDescription(buffer.toString("base64url"))
-				.setThumbnail(`attachment://${playerName}.png`);
-			body["embeds"] = [embed];
-		}
-		console.log(body);
-		request.post(
-			{
-				url: this.channel_webhook,
-				body: body,
-				headers: { "content-type": "application/json; charset=utf-8" },
-				json: true,
-			},
-			(err, res) => {
-				if (err) {
-					console.error(err);
-				}
-			}
-		);
+			avatarURL: avatar_url,
+		});
 	}
 }
 
