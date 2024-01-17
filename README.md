@@ -43,3 +43,5 @@ rcon_password =
 - `Main.discord`: Discord.Client
 - `Miin.discord.send()`: Send a message to the Discord webhook.
 - `Miin.discord.sendEmbed()`: Send message embed to Discord webhook.
+
+All display formats are contained in `src/plugins/index.ts`.
