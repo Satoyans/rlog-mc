@@ -31,3 +31,9 @@ rlog.discord.on("chat", async (message) => {
 rlog.minecraft.on("chat", async (time, info, playerName, message) => {
 	rlog.discord.send(playerName, message, await rlog.minecraft.getIcon(playerName));
 });
+rlog.minecraft.on("join", async (time, info, playerName) => {
+	rlog.discord.send(playerName, `join the game`, await rlog.minecraft.getIcon(playerName));
+});
+rlog.minecraft.on("leave", async (time, info, playerName) => {
+	rlog.discord.send(playerName, `left the game`, await rlog.minecraft.getIcon(playerName));
+});

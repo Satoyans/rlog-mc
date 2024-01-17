@@ -98,3 +98,31 @@ index_1.rlog.minecraft.on("chat", function (time, info, playerName, message) { r
         }
     });
 }); });
+index_1.rlog.minecraft.on("join", function (time, info, playerName) { return __awaiter(void 0, void 0, void 0, function () {
+    var _a, _b, _c;
+    return __generator(this, function (_d) {
+        switch (_d.label) {
+            case 0:
+                _b = (_a = index_1.rlog.discord).send;
+                _c = [playerName, "join the game"];
+                return [4 /*yield*/, index_1.rlog.minecraft.getIcon(playerName)];
+            case 1:
+                _b.apply(_a, _c.concat([_d.sent()]));
+                return [2 /*return*/];
+        }
+    });
+}); });
+index_1.rlog.minecraft.on("leave", function (time, info, playerName) { return __awaiter(void 0, void 0, void 0, function () {
+    var _a, _b, _c;
+    return __generator(this, function (_d) {
+        switch (_d.label) {
+            case 0:
+                _b = (_a = index_1.rlog.discord).send;
+                _c = [playerName, "left the game"];
+                return [4 /*yield*/, index_1.rlog.minecraft.getIcon(playerName)];
+            case 1:
+                _b.apply(_a, _c.concat([_d.sent()]));
+                return [2 /*return*/];
+        }
+    });
+}); });
