@@ -1,6 +1,6 @@
 import { config as dotenv_config } from "dotenv";
 import { DiscordEventEmitter, LogWatch, MinecraftEventEmitter, configType } from "./modules";
-import { AttachmentBuilder, Client, EmbedBuilder, GatewayIntentBits, Message, Partials, WebhookClient } from "discord.js";
+import { AttachmentBuilder, Client, EmbedBuilder, EmbedData, GatewayIntentBits, Message, Partials, WebhookClient } from "discord.js";
 import * as request from "request";
 import * as sharp from "sharp";
 import { Rcon as RCONClient } from "rcon-client";
@@ -73,6 +73,121 @@ class Minecraft {
 					const playerName = leave_match[1];
 					this.event.emit("leave", time, info, playerName); //leave event
 				}
+				console.log(args);
+				let deth_messages_regex = [
+					/^(.*?)\swas\spricked\sto\sdeath$/,
+					/^(.*?)\swalked\sinto\sa\scactus\swhile\strying\sto\sescape\s(.*?)$/,
+					/^(.*?)\sdrowned$/,
+					/^(.*?)\sdrowned\swhile\strying\sto\sescape\s(.*?)$/,
+					/^(.*?)\sdied\sfrom\sdehydration$/,
+					/^(.*?)\sdied\sfrom\sdehydration\swhile\strying\sto\sescape\s(.*?)$/,
+					/^(.*?)\sexperienced\skinetic\senergy$/,
+					/^(.*?)\s\sexperienced\skinetic\senergy\swhile\strying\sto\sescape\s(.*?)$/,
+					/^(.*?)\sblew\sup$/,
+					/^(.*?)\swas\sblown\sup\sby\s(.*?)$/,
+					/^(.*?)\swas\sblown\sup\sby\s(.*?)\susing\s(.*?)$/,
+					/^(.*?)\swas\skilled\sby\s[Intentional\sGame\sDesign]$/,
+					/^(.*?)\shit\sthe\sground\stoo\shard$/,
+					/^(.*?)\shit\sthe\sground\stoo\shard\swhile\strying\sto\sescape\s(.*?)$/,
+					/^(.*?)\sfell\sfrom\sa\shigh\splace$/,
+					/^(.*?)\sfell\soff\sa\sladder$/,
+					/^(.*?)\sfell\soff\ssome\svines$/,
+					/^(.*?)\sfell\soff\ssome\sweeping\svines$/,
+					/^(.*?)\sfell\soff\ssome\stwisting\svines$/,
+					/^(.*?)\sfell\soff\sscaffolding$/,
+					/^(.*?)\sfell\swhile\sclimbing$/,
+					/^(.*?)\swas\sdoomed\sto\sfall$/,
+					/^(.*?)\swas\sdoomed\sto\sfall\sby\s(.*?)$/,
+					/^(.*?)\swas\sdoomed\sto\sfall\sby\s(.*?)\susing\s(.*?)$/,
+					/^(.*?)\swas\simpaled\son\sa\sstalagmite$/,
+					/^(.*?)\swas\simpaled\son\sa\sstalagmite\swhile\sfighting\s(.*?)$/,
+					/^(.*?)\swas\ssquashed\sby\sa\sfalling\sanvil$/,
+					/^(.*?)\swas\ssquashed\sby\sa\sfalling\sblock$/,
+					/^(.*?)\swas\sskewered\sby\sa\sfalling\sstalactite$/,
+					/^(.*?)\swent\sup\sin\sflames$/,
+					/^(.*?)\swalked\sinto\sfire\swhile\sfighting\s(.*?)$/,
+					/^(.*?)\sburned\sto\sdeath$/,
+					/^(.*?)\swas\sburned\sto\sa\scrisp\swhile\sfighting\s(.*?)$/,
+					/^(.*?)\swent\soff\swith\sa\sbang$/,
+					/^(.*?)\swent\soff\swith\sa\sbang\sdue\sto\sa\sfirework\sfired\sfrom\s(.*?)\susing\s(.*?)$/,
+					/^(.*?)\stried\sto\sswim\sin\slava$/,
+					/^(.*?)\stried\sto\sswim\sin\slava\sto\sescape\s(.*?)$/,
+					/^(.*?)\swas\sstruck\sby\slightning$/,
+					/^(.*?)\swas\sstruck\sby\slightning\swhile\sfighting\s(.*?)$/,
+					/^(.*?)\sdiscovered\sthe\sfloor\swas\slava$/,
+					/^(.*?)\swalked\sinto\sthe\sdanger\szone\sdue\sto\s(.*?)$/,
+					/^(.*?)\swas\skilled\sby\smagic$/,
+					/^(.*?)\swas\skilled\sby\smagic\swhile\strying\sto\sescape\s(.*?)$/,
+					/^(.*?)\swas\skilled\sby\s(.*?)\susing\smagic$/,
+					/^(.*?)\swas\skilled\sby\s(.*?)\susing\s(.*?)(?!magic)$/,
+					/^(.*?)\sfroze\sto\sdeath$/,
+					/^(.*?)\swas\sfrozen\sto\sdeath\sby\s(.*?)$/,
+					/^(.*?)\swas\sslain\sby\s(.*?)$/,
+					/^(.*?)\swas\sslain\sby\s(.*?)\susing\s(.*?)$/,
+					/^(.*?)\swas\sstung\sto\sdeath$/,
+					/^(.*?)\swas\sstung\sto\sdeath\sby\s(.*?)\susing\s(.*?)$/,
+					/^(.*?)\swas\sobliterated\sby\sa\ssonically-charged\sshriek$/,
+					/^(.*?)\swas\sobliterated\sby\sa\ssonically-charged\sshriek\swhile\strying\sto\sescape\s(.*?)\swielding\s(.*?)$/,
+					/^(.*?)\swas\sshot\sby\s(.*?)$/,
+					/^(.*?)\swas\sshot\sby\s(.*?)\susing\s(.*?)$/,
+					/^(.*?)\swas\spummeled\sby\s(.*?)$/,
+					/^(.*?)\swas\spummeled\sby\s(.*?)\susing\s(.*?)$/,
+					/^(.*?)\swas\sfireballed\sby\s(.*?)$/,
+					/^(.*?)\swas\sfireballed\sby\s(.*?)\susing\s(.*?)$/,
+					/^(.*?)\swas\sshot\sby\sa\sskull\sfrom\s(.*?)$/,
+					/^(.*?)\swas\sshot\sby\sa\sskull\sfrom\s(.*?)\susing\s(.*?)$/,
+					/^(.*?)\sstarved\sto\sdeath$/,
+					/^(.*?)\sstarved\sto\sdeath\swhile\sfighting\s(.*?)$/,
+					/^(.*?)\ssuffocated\sin\sa\swall$/,
+					/^(.*?)\ssuffocated\sin\sa\swall\swhile\sfighting\s(.*?)$/,
+					/^(.*?)\swas\ssquished\stoo\smuch$/,
+					/^(.*?)\swas\ssquashed\sby\s(.*?)$/,
+					/^(.*?)\sleft\sthe\sconfines\sof\sthis\sworld$/,
+					/^(.*?)\sleft\sthe\sconfines\sof\sthis\sworld\swhile\sfighting\s(.*?)$/,
+					/^(.*?)\swas\spoked\sto\sdeath\sby\sa\ssweet\sberry\sbush$/,
+					/^(.*?)\swas\spoked\sto\sdeath\sby\sa\ssweet\sberry\sbush\swhile\strying\sto\sescape\s(.*?)$/,
+					/^(.*?)\swas\skilled\swhile\strying\sto\shurt\s(.*?)$/,
+					/^(.*?)\swas\simpaled\sby\s(.*?)$/,
+					/^(.*?)\swas\simpaled\sby\s(.*?)\swith\s(.*?)$/,
+					/^(.*?)\sfell\sout\sof\sthe\sworld$/,
+					/^(.*?)\sdidn't\swant\sto\slive\sin\sthe\ssame\sworld\sas\s(.*?)$/,
+					/^(.*?)\swithered\saway$/,
+					/^(.*?)\sdied\sbecause\sof\s(.*?)$/,
+					/^(.*?)\swas\skilled$/,
+					/^(.*?)\sdidn't\swant\sto\slive\sas\s(.*?)$/,
+					/^(.*?)\swas\skilled\sby\seven\smore\smagic$/,
+				];
+				for (let deth_message_regex of deth_messages_regex) {
+					const death_message_match = args.match(deth_message_regex);
+					if (death_message_match !== null && !death_message_match.includes("")) {
+						const playerName = death_message_match[1];
+						const attackMob = death_message_match[2];
+						const item = death_message_match[3];
+						//death event
+						if (attackMob === undefined) {
+							this.event.emit("death", args, playerName);
+						} else if (item === undefined) {
+							this.event.emit("death", args, playerName, attackMob);
+						} else {
+							this.event.emit("death", args, playerName, attackMob, item);
+						}
+					}
+				}
+				let deth_message_regex2 = /^(.*?)\swas\skilled\sby\s(.*?)\swhile\strying\sto\shurt\s(.*?)$/; //player , item , attack
+				let death_message_match = args.match(deth_message_regex2);
+				if (death_message_match !== null && !death_message_match.includes("")) {
+					const playerName = death_message_match[1];
+					const item = death_message_match[2];
+					const attackMob = death_message_match[3];
+					//death event
+					if (attackMob === undefined) {
+						this.event.emit("death", args, playerName);
+					} else if (item === undefined) {
+						this.event.emit("death", args, playerName, attackMob);
+					} else {
+						this.event.emit("death", args, playerName, attackMob, item);
+					}
+				}
 			} else {
 				console.log(`No match found:${text}`);
 			}
@@ -102,6 +217,7 @@ class Discord {
 		});
 		this.client.on("messageCreate", this.messageCreate.bind(this));
 		this.event.send = this.sendMessage.bind(this);
+		this.event.sendEmbed = this.sendMessageEmbed.bind(this);
 	}
 	private async messageCreate(message: Message) {
 		if (message.channelId !== this.channel_id) return;
@@ -110,10 +226,17 @@ class Discord {
 	}
 	private async sendMessage(playerName: string, message: string, avatar_url?: string) {
 		const webhookClient = new WebhookClient({ url: this.channel_webhook });
-		console.log(avatar_url);
 		webhookClient.send({
 			username: playerName,
 			content: message,
+			avatarURL: avatar_url,
+		});
+	}
+	private async sendMessageEmbed(playerName: string, body: EmbedData, avatar_url?: string) {
+		const webhookClient = new WebhookClient({ url: this.channel_webhook });
+		webhookClient.send({
+			username: playerName,
+			embeds: [new EmbedBuilder(body)],
 			avatarURL: avatar_url,
 		});
 	}
