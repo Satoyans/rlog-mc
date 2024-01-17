@@ -3,19 +3,22 @@ import { DiscordEventEmitter, LogWatch, MinecraftEventEmitter, configType } from
 import { Client, GatewayIntentBits, Message, Partials } from "discord.js";
 import * as request from "request";
 import * as sharp from "sharp";
-import * as fs from "fs";
-import * as path from "path";
+import "./plugins/loader";
 class Main {
 	minecraft: MinecraftEventEmitter;
 	discord: DiscordEventEmitter;
+	getMcIcon: (playerName: string) => Promise<Buffer>;
 	constructor() {
 		//configはトークンを含むためthisに入れない
 		const config = <configType>dotenv_config().parsed;
 		if (!config) throw Error(".env config could not be loaded.");
 		console.log(config);
 		console.log("Successfully loaded .env!");
-		this.minecraft = new Minecraft(config).event;
-		this.discord = new Discord(config).event;
+		const minecraft = new Minecraft(config);
+		const discord = new Discord(config);
+		this.minecraft = minecraft.event;
+		this.getMcIcon = minecraft.getIcon;
+		this.discord = discord.event;
 	}
 }
 class Minecraft {
@@ -100,6 +103,7 @@ class Minecraft {
 			})
 			.composite([{ input: base_face_buffer, blend: "over" }])
 			.toBuffer();
+		return face_buffer;
 		//sharp(face_buffer).toFile(path.join(__dirname, `./${playerName}.png`));//export
 	}
 }
@@ -156,7 +160,4 @@ class Discord {
 	}
 }
 
-const main = new Main();
-main.minecraft.on("chat", (time, info, playerName, message) => {
-	console.log(time, info, playerName, message);
-});
+export const rlog = new Main();
