@@ -32,11 +32,15 @@ rlog.minecraft.on("chat", async (time, info, playerName, message) => {
 	rlog.discord.send(playerName, message, await rlog.minecraft.getIcon(playerName));
 });
 rlog.minecraft.on("join", async (time, info, playerName) => {
-	rlog.discord.sendEmbed(playerName, { title: `${playerName} join the game`, color: 0x06d69e }, await rlog.minecraft.getIcon(playerName));
+	rlog.discord.sendEmbed(playerName, { title: `**${playerName} join the game**`, color: 0x06d69e }, await rlog.minecraft.getIcon(playerName));
 });
 rlog.minecraft.on("leave", async (time, info, playerName) => {
-	rlog.discord.sendEmbed(playerName, { title: `${playerName} left the game`, color: 0xef476e }, await rlog.minecraft.getIcon(playerName));
+	rlog.discord.sendEmbed(playerName, { title: `**${playerName} left the game**`, color: 0xef476e }, await rlog.minecraft.getIcon(playerName));
 });
 rlog.minecraft.on("death", async (log, playerName, attackMob, item) => {
-	rlog.discord.sendEmbed(playerName, { title: `${playerName} died`, description: log, color: 0xffd166 }, await rlog.minecraft.getIcon(playerName));
+	rlog.discord.sendEmbed(
+		playerName,
+		{ title: `**${playerName} died**`, description: log, color: 0xffd166 },
+		await rlog.minecraft.getIcon(playerName)
+	);
 });

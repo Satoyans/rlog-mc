@@ -103,8 +103,8 @@ index_1.rlog.minecraft.on("join", function (time, info, playerName) { return __a
     return __generator(this, function (_d) {
         switch (_d.label) {
             case 0:
-                _b = (_a = index_1.rlog.discord).send;
-                _c = [playerName, "join the game"];
+                _b = (_a = index_1.rlog.discord).sendEmbed;
+                _c = [playerName, { title: "**".concat(playerName, " join the game**"), color: 0x06d69e }];
                 return [4 /*yield*/, index_1.rlog.minecraft.getIcon(playerName)];
             case 1:
                 _b.apply(_a, _c.concat([_d.sent()]));
@@ -117,8 +117,8 @@ index_1.rlog.minecraft.on("leave", function (time, info, playerName) { return __
     return __generator(this, function (_d) {
         switch (_d.label) {
             case 0:
-                _b = (_a = index_1.rlog.discord).send;
-                _c = [playerName, "left the game"];
+                _b = (_a = index_1.rlog.discord).sendEmbed;
+                _c = [playerName, { title: "**".concat(playerName, " left the game**"), color: 0xef476e }];
                 return [4 /*yield*/, index_1.rlog.minecraft.getIcon(playerName)];
             case 1:
                 _b.apply(_a, _c.concat([_d.sent()]));
@@ -131,8 +131,9 @@ index_1.rlog.minecraft.on("death", function (log, playerName, attackMob, item) {
     return __generator(this, function (_d) {
         switch (_d.label) {
             case 0:
-                _b = (_a = index_1.rlog.discord).send;
-                _c = [playerName, log.replace(playerName, "")];
+                _b = (_a = index_1.rlog.discord).sendEmbed;
+                _c = [playerName,
+                    { title: "**".concat(playerName, " died**"), description: log, color: 0xffd166 }];
                 return [4 /*yield*/, index_1.rlog.minecraft.getIcon(playerName)];
             case 1:
                 _b.apply(_a, _c.concat([_d.sent()]));

@@ -15,7 +15,6 @@ class Main {
 		//configはトークンを含むためthisに入れない
 		const config = <configType>dotenv_config().parsed;
 		if (!config) throw Error(".env config could not be loaded.");
-		console.log(config);
 		console.log("Successfully loaded .env!");
 		const minecraft = new Minecraft(config);
 		const discord = new Discord(config);
@@ -73,7 +72,6 @@ class Minecraft {
 					const playerName = leave_match[1];
 					this.event.emit("leave", time, info, playerName); //leave event
 				}
-				console.log(args);
 				let deth_messages_regex = [
 					/^(.*?)\swas\spricked\sto\sdeath$/,
 					/^(.*?)\swalked\sinto\sa\scactus\swhile\strying\sto\sescape\s(.*?)$/,
@@ -209,7 +207,6 @@ class Discord {
 			partials: [Partials.Channel],
 		});
 		this.channel_id = config.discord_chat_channel_id;
-		console.log(config.discord_chat_channel_id);
 		this.channel_webhook = config.discord_chat_channel_webhook;
 		this.client.login(config.discord_bot_token);
 		this.client.on("ready", async () => {
