@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import * as path from "path";
 import * as fs from "fs";
-import { Message } from "discord.js";
+import { EmbedData, Message } from "discord.js";
 
 export class MinecraftEventEmitter extends EventEmitter {
 	getIcon: (playerName: string) => Promise<string>;
@@ -9,6 +9,7 @@ export class MinecraftEventEmitter extends EventEmitter {
 	public emit(event: "command", time: string, info: string, result: string): boolean;
 	public emit(event: "join", time: string, info: string, playerName: string): boolean;
 	public emit(event: "leave", time: string, info: string, playerName: string): boolean;
+	public emit(event: "death", log: string, player: string, attackMob?: string, item?: string): boolean;
 	public emit(event: minecraftEventType, ...args: any[]) {
 		return super.emit(event, ...args);
 	}
@@ -17,6 +18,7 @@ export class MinecraftEventEmitter extends EventEmitter {
 	public on(event: "command", func: (time: string, info: string, result: string) => void): this;
 	public on(event: "join", func: (time: string, info: string, playerName: string) => void): this;
 	public on(event: "leave", func: (time: string, info: string, playerName: string) => void): this;
+	public on(event: "death", func: (log: string, player: string, attackMob?: string, item?: string) => void): this;
 	public on(eventName: minecraftEventType, func: (...arg: any) => void) {
 		return super.on(eventName, func);
 	}
@@ -24,6 +26,7 @@ export class MinecraftEventEmitter extends EventEmitter {
 
 export class DiscordEventEmitter extends EventEmitter {
 	send: (playerName: string, message: string, buffer?: Buffer | string) => Promise<void>;
+	sendEmbed: (playerName: string, body: EmbedData, avatar_url?: string) => Promise<void>;
 	public emit(event: "chat", message: Message): boolean;
 	public emit(event: discordEventType, ...args: any[]) {
 		return super.emit(event, ...args);
@@ -100,4 +103,4 @@ export type configType = {
 
 export type discordEventType = "chat";
 
-export type minecraftEventType = "chat" | "command" | "join" | "leave";
+export type minecraftEventType = "chat" | "command" | "join" | "leave" | "death";
