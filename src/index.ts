@@ -3,7 +3,7 @@ import { DiscordEventEmitter, LogWatch, MinecraftEventEmitter, configType } from
 import { Client, GatewayIntentBits, Message, Partials } from "discord.js";
 import * as request from "request";
 import * as sharp from "sharp";
-import "./plugins/loader";
+
 class Main {
 	minecraft: MinecraftEventEmitter;
 	discord: DiscordEventEmitter;
@@ -134,8 +134,6 @@ class Discord {
 	private async messageCreate(message: Message) {
 		if (message.channelId !== this.channel_id) return;
 		if (message.author.bot) return;
-		// const playerName = message.member?.nickname ?? message.author.displayName;
-		// const text = message.content;
 		this.event.emit("chat", message);
 	}
 	private async sendMessage(playerName: string, message: string, avatar_url?: string) {
@@ -161,3 +159,4 @@ class Discord {
 }
 
 export const rlog = new Main();
+import "./plugins/loader";
