@@ -3,11 +3,13 @@ import { DiscordEventEmitter, LogWatch, MinecraftEventEmitter, configType } from
 import { Client, GatewayIntentBits, Message, Partials } from "discord.js";
 import * as request from "request";
 import * as sharp from "sharp";
+import { Rcon as RCONClient } from "rcon-client";
 
 class Main {
 	minecraft: MinecraftEventEmitter;
 	discord: DiscordEventEmitter;
 	getMcIcon: (playerName: string) => Promise<Buffer>;
+	rcon: Rcon;
 	constructor() {
 		//configはトークンを含むためthisに入れない
 		const config = <configType>dotenv_config().parsed;
@@ -16,9 +18,11 @@ class Main {
 		console.log("Successfully loaded .env!");
 		const minecraft = new Minecraft(config);
 		const discord = new Discord(config);
+		const rcon = new Rcon(config);
 		this.minecraft = minecraft.event;
 		this.getMcIcon = minecraft.getIcon;
 		this.discord = discord.event;
+		this.rcon = rcon;
 	}
 }
 class Minecraft {
@@ -155,6 +159,28 @@ class Discord {
 				}
 			}
 		);
+	}
+}
+
+class Rcon {
+	rcon_host: string;
+	rcon_password: string;
+	rcon_port: number;
+	rcon_client: RCONClient;
+	constructor(config: configType) {
+		this.rcon_host = config.rcon_host;
+		this.rcon_password = config.rcon_password;
+		this.rcon_port = Number(config.rcon_port);
+	}
+	async send(command: string) {
+		const rcon = await RCONClient.connect({
+			host: this.rcon_host,
+			port: this.rcon_port,
+			password: this.rcon_password,
+		});
+		const result = await rcon.send(command);
+		rcon.end();
+		return result;
 	}
 }
 
