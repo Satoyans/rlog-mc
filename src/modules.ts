@@ -92,7 +92,7 @@ export type configType = {
 	discord_chat_channel_id: string;
 	discord_chat_channel_webhook: string;
 	rcon_host: string;
-	rcon_post: string;
+	rcon_port: string;
 	rcon_password: string;
 };
 
