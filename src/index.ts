@@ -27,9 +27,12 @@ class Main {
 }
 class Minecraft {
 	event: MinecraftEventEmitter;
+	icon_map: Map<string, Buffer>;
+
 	constructor(config: configType) {
 		const logWatch = new LogWatch(config);
 		this.event = new MinecraftEventEmitter();
+		this.icon_map = new Map();
 		logWatch.event.on("change_diff", (texts: string[]) => {
 			const log_regex = /^\[(.*?)\] \[(.*?)\]: (.*)$/;
 			const chat_regex = /^<(.*?)>\s(.*?)$/;
@@ -72,6 +75,8 @@ class Minecraft {
 		});
 	}
 	async getIcon(playerName: string) {
+		let icon = this.icon_map.get(playerName);
+		if (icon) return icon;
 		const get = (uri: string, options?: request.CoreOptions): Promise<request.Response> => {
 			return new Promise((resolve, reject) => {
 				request.get(uri, options, (err, res) => {
@@ -107,6 +112,7 @@ class Minecraft {
 			})
 			.composite([{ input: base_face_buffer, blend: "over" }])
 			.toBuffer();
+		this.icon_map.set(playerName, face_buffer);
 		return face_buffer;
 		//sharp(face_buffer).toFile(path.join(__dirname, `./${playerName}.png`));//export
 	}
