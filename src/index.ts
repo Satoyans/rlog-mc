@@ -1,9 +1,10 @@
 import { config as dotenv_config } from "dotenv";
 import { DiscordEventEmitter, LogWatch, MinecraftEventEmitter, configType } from "./modules";
-import { Client, GatewayIntentBits, Message, Partials } from "discord.js";
+import { AttachmentBuilder, Client, EmbedBuilder, GatewayIntentBits, Message, Partials, WebhookClient } from "discord.js";
 import * as request from "request";
 import * as sharp from "sharp";
 import { Rcon as RCONClient } from "rcon-client";
+import * as path from "path";
 
 class Main {
 	minecraft: MinecraftEventEmitter;
@@ -20,7 +21,6 @@ class Main {
 		const discord = new Discord(config);
 		const rcon = new Rcon(config);
 		this.minecraft = minecraft.event;
-		this.getMcIcon = minecraft.getIcon;
 		this.discord = discord.event;
 		this.rcon = rcon;
 	}
@@ -33,46 +33,8 @@ class Minecraft {
 		const logWatch = new LogWatch(config);
 		this.event = new MinecraftEventEmitter();
 		this.icon_map = new Map();
-		logWatch.event.on("change_diff", (texts: string[]) => {
-			const log_regex = /^\[(.*?)\] \[(.*?)\]: (.*)$/;
-			const chat_regex = /^<(.*?)>\s(.*?)$/;
-			const cmd_regex = /^[(.*?)]$/;
-			const join_regex = /^(.*?)\sjoined\sthe\sgame$/;
-			const leave_regex = /^(.*?)\sleft\sthe\sgame$/;
-			for (let text of texts) {
-				const log_match = text.match(log_regex);
-
-				if (log_match !== null && !log_match.includes("")) {
-					const time = log_match[1];
-					const info = log_match[2];
-					const args = log_match[3];
-					//this.event.emit(info.replace("Server thread/", ""), time, info, args); //INFO,WARN,DEBUG,...
-					const chat_match = args.match(chat_regex); //chat
-					if (chat_match !== null && !chat_match.includes("")) {
-						const playerName = chat_match[1];
-						const message = chat_match[2];
-						this.event.emit("chat", time, info, playerName, message); //chat event
-					}
-					const cmd_match = args.match(cmd_regex); //command
-					if (cmd_match !== null && !cmd_match.includes("")) {
-						const result = cmd_match[1];
-						this.event.emit("command", time, info, result); //command event
-					}
-					const join_match = args.match(join_regex); //join
-					if (join_match !== null && !join_match.includes("")) {
-						const playerName = join_match[1];
-						this.event.emit("join", time, info, playerName); //join event
-					}
-					const leave_match = args.match(leave_regex); //leave
-					if (leave_match !== null && !leave_match.includes("")) {
-						const playerName = leave_match[1];
-						this.event.emit("leave", time, info, playerName); //leave event
-					}
-				} else {
-					console.log(`No match found:${text}`);
-				}
-			}
-		});
+		this.event.getIcon = this.getIcon.bind(this);
+		logWatch.event.on("change_diff", this.change_diff.bind(this));
 	}
 	async getIcon(playerName: string) {
 		let icon = this.icon_map.get(playerName);
@@ -113,8 +75,49 @@ class Minecraft {
 			.composite([{ input: base_face_buffer, blend: "over" }])
 			.toBuffer();
 		this.icon_map.set(playerName, face_buffer);
+		sharp(face_buffer).toFile(path.join(__dirname, `../skins/${playerName}.png`)); //export
 		return face_buffer;
-		//sharp(face_buffer).toFile(path.join(__dirname, `./${playerName}.png`));//export
+	}
+
+	change_diff(texts: string[]) {
+		const log_regex = /^\[(.*?)\] \[(.*?)\]: (.*)$/;
+		const chat_regex = /^<(.*?)>\s(.*?)$/;
+		const cmd_regex = /^[(.*?)]$/;
+		const join_regex = /^(.*?)\sjoined\sthe\sgame$/;
+		const leave_regex = /^(.*?)\sleft\sthe\sgame$/;
+		for (let text of texts) {
+			const log_match = text.match(log_regex);
+
+			if (log_match !== null && !log_match.includes("")) {
+				const time = log_match[1];
+				const info = log_match[2];
+				const args = log_match[3];
+				//this.event.emit(info.replace("Server thread/", ""), time, info, args); //INFO,WARN,DEBUG,...
+				const chat_match = args.match(chat_regex); //chat
+				if (chat_match !== null && !chat_match.includes("")) {
+					const playerName = chat_match[1];
+					const message = chat_match[2];
+					this.event.emit("chat", time, info, playerName, message); //chat event
+				}
+				const cmd_match = args.match(cmd_regex); //command
+				if (cmd_match !== null && !cmd_match.includes("")) {
+					const result = cmd_match[1];
+					this.event.emit("command", time, info, result); //command event
+				}
+				const join_match = args.match(join_regex); //join
+				if (join_match !== null && !join_match.includes("")) {
+					const playerName = join_match[1];
+					this.event.emit("join", time, info, playerName); //join event
+				}
+				const leave_match = args.match(leave_regex); //leave
+				if (leave_match !== null && !leave_match.includes("")) {
+					const playerName = leave_match[1];
+					this.event.emit("leave", time, info, playerName); //leave event
+				}
+			} else {
+				console.log(`No match found:${text}`);
+			}
+		}
 	}
 }
 
@@ -139,19 +142,29 @@ class Discord {
 			console.log("discord bot started!");
 		});
 		this.client.on("messageCreate", this.messageCreate.bind(this));
-		this.send = this.sendMessage.bind(this);
+		this.event.send = this.sendMessage.bind(this);
 	}
 	private async messageCreate(message: Message) {
 		if (message.channelId !== this.channel_id) return;
 		if (message.author.bot) return;
 		this.event.emit("chat", message);
 	}
-	private async sendMessage(playerName: string, message: string, avatar_url?: string) {
+	private async sendMessage(playerName: string, message: string, buffer?: Buffer | string) {
+		const webhookClient = new WebhookClient({ url: this.channel_webhook });
 		const body = {
 			username: playerName,
 			content: message,
 		};
-		avatar_url ? (body["avatar_url"] = avatar_url) : null;
+		if (buffer) {
+			body["avatar_url"] = `attachment://${playerName}.png`;
+			body["files"] = [new AttachmentBuilder(path.join(__dirname, `../skins/${playerName}.png`), { name: `${playerName}.png` })];
+			const embed = new EmbedBuilder()
+				.setTitle(message)
+				.setDescription(buffer.toString("base64url"))
+				.setThumbnail(`attachment://${playerName}.png`);
+			body["embeds"] = [embed];
+		}
+		console.log(body);
 		request.post(
 			{
 				url: this.channel_webhook,

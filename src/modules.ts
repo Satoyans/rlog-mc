@@ -4,6 +4,7 @@ import * as fs from "fs";
 import { Message } from "discord.js";
 
 export class MinecraftEventEmitter extends EventEmitter {
+	getIcon: (playerName: string) => Promise<Buffer>;
 	public emit(event: "chat", time: string, info: string, playerName: string, message: string): boolean;
 	public emit(event: "command", time: string, info: string, result: string): boolean;
 	public emit(event: "join", time: string, info: string, playerName: string): boolean;
@@ -22,6 +23,7 @@ export class MinecraftEventEmitter extends EventEmitter {
 }
 
 export class DiscordEventEmitter extends EventEmitter {
+	send: (playerName: string, message: string, buffer?: Buffer | string) => Promise<void>;
 	public emit(event: "chat", message: Message): boolean;
 	public emit(event: discordEventType, ...args: any[]) {
 		return super.emit(event, ...args);
