@@ -15,7 +15,8 @@ type configType = {
 };
 class Main {
 	latest_log_path: string;
-	logWatch: logWatch;
+	logWatch: LogWatch;
+	minecraft: Minecraft;
 	constructor() {
 		//configはトークンを含むためthisに入れない
 		const config = <configType>dotenv_config().parsed;
@@ -23,11 +24,59 @@ class Main {
 		console.log(config);
 		console.log("Successfully loaded .env!");
 		this.latest_log_path = path.join(config.latest_log_path);
-		this.logWatch = new logWatch(this.latest_log_path);
+		this.logWatch = new LogWatch(this.latest_log_path);
+		this.minecraft = new Minecraft(this.logWatch.event);
+	}
+}
+class Minecraft {
+	event: EventEmitter;
+	constructor(logWatchEvent: EventEmitter) {
+		this.event = new EventEmitter();
+		logWatchEvent.on("change_diff", (texts: string[]) => {
+			const log_regex = /^\[(.*?)\] \[(.*?)\]: (.*)$/;
+			const chat_regex = /^<(.*?)>\s(.*?)$/;
+			const cmd_regex = /^<(.*?)>\s(.*?)$/;
+			const join_regex = /^(.*?)\sjoined\sthe\sgame$/;
+			const leave_regex = /^(.*?)\sleft\sthe\sgame$/;
+			for (let text of texts) {
+				const log_match = text.match(log_regex);
+
+				if (log_match !== null && !log_match.includes("")) {
+					const time = log_match[1];
+					const info = log_match[2];
+					const args = log_match[3];
+					this.event.emit(info.replace("Server thread/", ""), time, info, args); //INFO,WARN,DEBUG,...
+					const chat_match = args.match(chat_regex); //chat
+					if (chat_match !== null && !chat_match.includes("")) {
+						const playerName = chat_match[1];
+						const message = chat_match[2];
+						this.event.emit("chat", time, info, playerName, message); //chat event
+					}
+					const cmd_match = args.match(cmd_regex); //command
+					if (cmd_match !== null && !cmd_match.includes("")) {
+						const playerName = cmd_match[1];
+						const message = cmd_match[2];
+						this.event.emit("command", time, info, playerName, message); //command event
+					}
+					const join_match = args.match(join_regex); //join
+					if (join_match !== null && !join_match.includes("")) {
+						const playerName = join_match[1];
+						this.event.emit("join", time, info, playerName); //join event
+					}
+					const leave_match = args.match(leave_regex); //leave
+					if (leave_match !== null && !leave_match.includes("")) {
+						const playerName = leave_match[1];
+						this.event.emit("leave", time, info, playerName); //leave event
+					}
+				} else {
+					console.log(`No match found:${text}`);
+				}
+			}
+		});
 	}
 }
 
-class logWatch {
+class LogWatch {
 	latest_log_path: string;
 	event: EventEmitter;
 	on: (eventName: string | symbol, listener: (...args: any[]) => void) => EventEmitter;
@@ -80,5 +129,4 @@ class logWatch {
 	}
 }
 
-const main = new Main();
-export const event = main.logWatch.event;
+new Main();
