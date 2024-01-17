@@ -198,7 +198,6 @@ class Discord {
 	client: Client<boolean>;
 	channel_id: string;
 	channel_webhook: string;
-	send: (playerName: string, message: string, avatar_url?: string) => Promise<void>;
 
 	constructor(config: configType) {
 		this.event = new DiscordEventEmitter();
