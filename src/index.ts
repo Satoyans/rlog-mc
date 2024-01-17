@@ -1,41 +1,32 @@
-import { EventEmitter } from "events";
-import * as fs from "fs";
-import { createInterface } from "readline";
 import { config as dotenv_config } from "dotenv";
+import { DiscordEventEmitter, LogWatch, MinecraftEventEmitter, configType } from "./modules";
+import { Client, GatewayIntentBits, Message, Partials } from "discord.js";
+import * as request from "request";
+import * as sharp from "sharp";
+import * as fs from "fs";
 import * as path from "path";
-
-type configType = {
-	latest_log_path: string;
-	discord_bot_token: string;
-	discord_chat_channel_id: string;
-	discord_chat_channel_webhook: string;
-	rcon_host: string;
-	rcon_post: string;
-	rcon_password: string;
-};
 class Main {
-	latest_log_path: string;
-	logWatch: LogWatch;
-	minecraft: Minecraft;
+	minecraft: MinecraftEventEmitter;
+	discord: DiscordEventEmitter;
 	constructor() {
 		//configはトークンを含むためthisに入れない
 		const config = <configType>dotenv_config().parsed;
 		if (!config) throw Error(".env config could not be loaded.");
 		console.log(config);
 		console.log("Successfully loaded .env!");
-		this.latest_log_path = path.join(config.latest_log_path);
-		this.logWatch = new LogWatch(this.latest_log_path);
-		this.minecraft = new Minecraft(this.logWatch.event);
+		this.minecraft = new Minecraft(config).event;
+		this.discord = new Discord(config).event;
 	}
 }
 class Minecraft {
-	event: EventEmitter;
-	constructor(logWatchEvent: EventEmitter) {
-		this.event = new EventEmitter();
-		logWatchEvent.on("change_diff", (texts: string[]) => {
+	event: MinecraftEventEmitter;
+	constructor(config: configType) {
+		const logWatch = new LogWatch(config);
+		this.event = new MinecraftEventEmitter();
+		logWatch.event.on("change_diff", (texts: string[]) => {
 			const log_regex = /^\[(.*?)\] \[(.*?)\]: (.*)$/;
 			const chat_regex = /^<(.*?)>\s(.*?)$/;
-			const cmd_regex = /^<(.*?)>\s(.*?)$/;
+			const cmd_regex = /^[(.*?)]$/;
 			const join_regex = /^(.*?)\sjoined\sthe\sgame$/;
 			const leave_regex = /^(.*?)\sleft\sthe\sgame$/;
 			for (let text of texts) {
@@ -45,7 +36,7 @@ class Minecraft {
 					const time = log_match[1];
 					const info = log_match[2];
 					const args = log_match[3];
-					this.event.emit(info.replace("Server thread/", ""), time, info, args); //INFO,WARN,DEBUG,...
+					//this.event.emit(info.replace("Server thread/", ""), time, info, args); //INFO,WARN,DEBUG,...
 					const chat_match = args.match(chat_regex); //chat
 					if (chat_match !== null && !chat_match.includes("")) {
 						const playerName = chat_match[1];
@@ -54,9 +45,8 @@ class Minecraft {
 					}
 					const cmd_match = args.match(cmd_regex); //command
 					if (cmd_match !== null && !cmd_match.includes("")) {
-						const playerName = cmd_match[1];
-						const message = cmd_match[2];
-						this.event.emit("command", time, info, playerName, message); //command event
+						const result = cmd_match[1];
+						this.event.emit("command", time, info, result); //command event
 					}
 					const join_match = args.match(join_regex); //join
 					if (join_match !== null && !join_match.includes("")) {
@@ -74,59 +64,99 @@ class Minecraft {
 			}
 		});
 	}
-}
-
-class LogWatch {
-	latest_log_path: string;
-	event: EventEmitter;
-	on: (eventName: string | symbol, listener: (...args: any[]) => void) => EventEmitter;
-	check_interval_ms: number;
-	last_size: number;
-	last_text: string;
-	constructor(path: string) {
-		this.latest_log_path = path;
-		this.check_interval_ms = 1000; //チェック間隔(ms)
-		this.event = new EventEmitter();
-		this.chengeEventAfter();
-		this.checkLogfile();
-		console.log("watch log file path:" + this.latest_log_path);
-		this.event.on("change", this.chengeEventAfter.bind(this));
-
-		this.last_size = 0;
-		this.last_text = Array(100).fill('"').join("'"); //なさそうな文字列
-	}
-
-	private checkLogfile() {
-		const check = () => {
-			const size = fs.statSync(this.latest_log_path).size;
-			if (this.last_size < size && this.last_size !== 0) {
-				this.event.emit("change");
-			}
-			this.last_size = size;
-		};
-		setInterval(check, this.check_interval_ms);
-	}
-	private chengeEventAfter() {
-		const stream = fs.createReadStream(this.latest_log_path);
-		let chunks: Buffer[] = [];
-		stream
-			.on("data", (chunk: Buffer) => {
-				chunks.push(chunk);
-			})
-			.on("end", () => {
-				const buffer = Buffer.concat(
-					chunks,
-					chunks.reduce((sum, chunk) => (sum += chunk.length), 0)
-				);
-				const text = buffer.toString("utf-8");
-				const split_text1 = text.split(this.last_text);
-				const split_text2 = split_text1[split_text1.length - 1].split("\r\n");
-				split_text2.pop();
-				this.last_text = text;
-				if (this.last_size === 0) return;
-				this.event.emit("change_diff", split_text2);
+	async getIcon(playerName: string) {
+		const get = (uri: string, options?: request.CoreOptions): Promise<request.Response> => {
+			return new Promise((resolve, reject) => {
+				request.get(uri, options, (err, res) => {
+					if (err) return reject(err);
+					return resolve(res);
+				});
 			});
+		};
+
+		const res1 = await get(`https://api.mojang.com/users/profiles/minecraft/${playerName}`);
+		const body1 = JSON.parse(res1.body);
+		const res2 = await get(`https://sessionserver.mojang.com/session/minecraft/profile/${body1.id}`);
+		const body2 = JSON.parse(res2.body);
+		const skin_url_base64 = body2.properties[0].value;
+		const skin_url_str = Buffer.from(skin_url_base64, "base64").toString();
+		const skin_url = JSON.parse(skin_url_str).textures.SKIN.url;
+		const res3 = await get(skin_url, { encoding: null });
+		const skin_buffer = await sharp(res3.body).resize({ width: 64 }).toBuffer();
+		const base_face_buffer = await sharp(skin_buffer)
+			.extract({
+				left: 40,
+				top: 8,
+				width: 8,
+				height: 8,
+			})
+			.toBuffer();
+		const face_buffer = await sharp(skin_buffer)
+			.extract({
+				left: 8,
+				top: 8,
+				width: 8,
+				height: 8,
+			})
+			.composite([{ input: base_face_buffer, blend: "over" }])
+			.toBuffer();
+		//sharp(face_buffer).toFile(path.join(__dirname, `./${playerName}.png`));//export
 	}
 }
 
-new Main();
+class Discord {
+	event: DiscordEventEmitter;
+	client: Client<boolean>;
+	channel_id: string;
+	channel_webhook: string;
+	send: (playerName: string, message: string, avatar_url?: string) => Promise<void>;
+
+	constructor(config: configType) {
+		this.event = new DiscordEventEmitter();
+		this.client = new Client({
+			intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+			partials: [Partials.Channel],
+		});
+		this.channel_id = config.discord_chat_channel_id;
+		console.log(config.discord_chat_channel_id);
+		this.channel_webhook = config.discord_chat_channel_webhook;
+		this.client.login(config.discord_bot_token);
+		this.client.on("ready", async () => {
+			console.log("discord bot started!");
+		});
+		this.client.on("messageCreate", this.messageCreate.bind(this));
+		this.send = this.sendMessage.bind(this);
+	}
+	private async messageCreate(message: Message) {
+		if (message.channelId !== this.channel_id) return;
+		if (message.author.bot) return;
+		// const playerName = message.member?.nickname ?? message.author.displayName;
+		// const text = message.content;
+		this.event.emit("chat", message);
+	}
+	private async sendMessage(playerName: string, message: string, avatar_url?: string) {
+		const body = {
+			username: playerName,
+			content: message,
+		};
+		avatar_url ? (body["avatar_url"] = avatar_url) : null;
+		request.post(
+			{
+				url: this.channel_webhook,
+				body: body,
+				headers: { "content-type": "application/json; charset=utf-8" },
+				json: true,
+			},
+			(err, res) => {
+				if (err) {
+					console.error(err);
+				}
+			}
+		);
+	}
+}
+
+const main = new Main();
+main.minecraft.on("chat", (time, info, playerName, message) => {
+	console.log(time, info, playerName, message);
+});
